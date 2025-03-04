@@ -1,0 +1,358 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd 
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
+    <http:listener-config name="movies-db-sapi-httpListenerConfig">
+        <http:listener-connection host="0.0.0.0" port="8081" />
+    </http:listener-config>
+    <apikit:config name="movies-db-sapi-config" api="resource::209ef67a-ae27-4f34-965a-a34fed477013:movies-db-sapi:1.0.0:raml:zip:movies-db-sapi.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <db:config name="Database_Config" doc:name="Database Config" doc:id="8a1d1879-9e86-4ce3-9636-3e8b64c5047e" >
+		<db:my-sql-connection host="localhost" port="3306" user="root" password="admin" database="movie_db" />
+	</db:config>
+	<flow name="movies-db-sapi-main">
+        <http:listener config-ref="movies-db-sapi-httpListenerConfig" path="/api/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="movies-db-sapi-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="movies-db-sapi-console">
+        <http:listener config-ref="movies-db-sapi-httpListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="movies-db-sapi-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+<flow name="ActualizarPelicula">
+    <!-- Escuchar la solicitud PUT -->
+    <http:listener config-ref="movies-db-sapi-httpListenerConfig" path="/api/movies/{id}" allowedMethods="PUT" doc:name="HTTP Listener" />
+
+    <!-- Capturar el ID de la URI -->
+    <set-variable variableName="id" value="#[attributes.uriParams.id as Number]" doc:name="Capturar ID" />
+
+    <!-- Logger para confirmar ID recibido -->
+    <logger level="INFO" message="ID recibido para actualizar: #[vars.id]" doc:name="Logger - ID recibido" />
+
+    <!-- Validar y transformar los datos de entrada -->
+    <ee:transform doc:name="Transformar Entrada">
+        <ee:message>
+            <ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{
+    title: payload.title as String,
+    release_year: payload.release_year as Number,
+    genre: payload.genre as String,
+    director: payload.director as String,
+    cast: payload.cast as String
+}
+]]></ee:set-payload>
+        </ee:message>
+    </ee:transform>
+
+    <logger level="INFO" message="Datos recibidos para actualización: #[payload]" doc:name="Logger - Datos para Actualizar" />
+
+    <!-- Actualizar en la base de datos -->
+    <db:update config-ref="Database_Config" doc:name="Actualizar en BD">
+        <db:sql><![CDATA[UPDATE movies 
+SET title = :title, release_year = :release_year, genre = :genre, director = :director, cast = :cast 
+WHERE id = :id;]]></db:sql>
+        <db:input-parameters><![CDATA[#[{
+            id: vars.id,
+            title: payload.title,
+            release_year: payload.release_year,
+            genre: payload.genre,
+            director: payload.director,
+            cast: payload.cast
+        }]]]></db:input-parameters>
+    </db:update>
+
+    <!-- Logger para confirmar éxito o fallos -->
+    <logger level="INFO" message="Actualización en BD completada para ID #[vars.id]" doc:name="Logger - Actualización Completada" />
+
+    <!-- Respuesta de éxito -->
+    <ee:transform doc:name="Respuesta de Éxito">
+        <ee:message>
+            <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    mensaje: "Película actualizada exitosamente",
+    id: vars.id
+}
+]]></ee:set-payload>
+        </ee:message>
+    </ee:transform>
+
+    <logger level="INFO" message="Película con ID #[vars.id] actualizada correctamente" doc:name="Logger - Éxito" />
+</flow>
+
+<flow name="DeleteMovie">
+    <!-- Escuchar la solicitud DELETE -->
+    <http:listener config-ref="movies-db-sapi-httpListenerConfig" path="/api/movies/{id}" allowedMethods="DELETE" doc:name="HTTP Listener" />
+
+    <!-- Capturar el ID de la URI -->
+    <set-variable variableName="id" value="#[attributes.uriParams.id as Number]" doc:name="Capturar ID" />
+
+    <!-- Logger para confirmar el ID recibido -->
+    <logger level="INFO" message="ID recibido para eliminar: #[vars.id]" doc:name="Logger - ID recibido" />
+
+    <!-- Ejecutar la consulta para eliminar el registro -->
+    <db:delete config-ref="Database_Config" doc:name="Eliminar en BD">
+        <db:sql><![CDATA[DELETE FROM movies WHERE id = :id;]]></db:sql>
+        <db:input-parameters><![CDATA[#[{ id: vars.id }]]]></db:input-parameters>
+    </db:delete>
+
+    <!-- Respuesta de éxito -->
+    <ee:transform doc:name="Respuesta de Éxito">
+        <ee:message>
+            <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    mensaje: "Película eliminada exitosamente",
+    id: vars.id
+}
+]]></ee:set-payload>
+        </ee:message>
+    </ee:transform>
+
+    <logger level="INFO" message="Película con ID #[vars.id] eliminada correctamente" doc:name="Logger - Éxito" />
+</flow>
+
+
+    <flow name="get:\movies:movies-db-sapi-config">
+        <http:listener doc:name="Listener" doc:id="21a84245-5f04-40c6-89aa-bcd30c426c77" config-ref="movies-db-sapi-httpListenerConfig" path="/api/movies"/>
+		<db:select doc:name="Select" doc:id="0b7bcc0b-c152-48b8-ba45-463e68033bbe" config-ref="Database_Config">
+			<db:sql ><![CDATA[SELECT * FROM movies]]></db:sql>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="bb7dff79-aa72-4721-a105-284c655b6ea5" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<!-- [STUDIO:"Transform Message"]<ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+&#45;&#45;-
+[
+  {
+    id: 1,
+    title: "Inception",
+    release_year: 2010,
+    genre: "Science Fiction",
+    director: "Christopher Nolan",
+    cast: "Leonardo DiCaprio, Joseph Gordon-Levitt"
+  }, 
+  {
+    id: 2,
+    title: "The Dark Knight",
+    release_year: 2008,
+    genre: "Action",
+    director: "Christopher Nolan",
+    cast: "Christian Bale, Heath Ledger"
+  }
+&#93; as Array {encoding: "UTF-8", mediaType: "application/json"}&#93;&#93;></ee:set-payload>
+            </ee:message>
+        </ee:transform> [STUDIO] -->
+    </flow>
+ <flow name="get:\movies\(id):application\json:movies-db-sapi-config">
+    <!-- Listener para recibir la solicitud -->
+    <http:listener config-ref="movies-db-sapi-httpListenerConfig" path="/api/movies/{id}" doc:name="HTTP Listener" />
+    
+    <!-- Transformar el mensaje para extraer el ID del URI -->
+    <ee:transform doc:name="Transform Message">
+        <ee:variables>
+            <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+        </ee:variables>
+    </ee:transform>
+
+    <!-- Registrar el valor del ID en los logs -->
+    <logger level="INFO" message="Fetching movie with id: #[vars.id]" doc:name="Logger" />
+
+    <!-- Conector de Base de Datos -->
+    <db:select config-ref="Database_Config" doc:name="Select">
+        <db:sql>SELECT * FROM movies WHERE id = :id</db:sql>
+        <db:input-parameters><![CDATA[#[{ id: vars.id as Number }]]]></db:input-parameters>
+    </db:select>
+
+    <!-- Transformar el resultado en un formato JSON -->
+    <ee:transform doc:name="Transform Message">
+        <ee:message>
+            <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+        </ee:message>
+    </ee:transform>
+
+</flow>
+
+<flow name="post:\movies:application\json:movies-db-sapi-config">
+    <http:listener config-ref="movies-db-sapi-httpListenerConfig" path="/api/addMovie" doc:name="HTTP Listener" />
+
+    <!-- Guardar el payload original en una variable -->
+    <set-variable variableName="originalPayload" value="#[payload]" doc:name="Guardar Payload Original" />
+
+    <logger level="INFO" message="Payload recibido: #[vars.originalPayload]" doc:name="Logger - Payload Recibido" />
+
+    <!-- Validar y transformar la entrada -->
+    <ee:transform doc:name="Transformar Entrada">
+        <ee:message>
+            <ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{
+    title: vars.originalPayload.title as String,
+    release_year: vars.originalPayload.release_year as Number,
+    genre: vars.originalPayload.genre as String,
+    director: vars.originalPayload.director as String,
+    cast: vars.originalPayload.cast as String
+}
+]]></ee:set-payload>
+        </ee:message>
+    </ee:transform>
+
+    <logger level="INFO" message="Datos preparados para la base de datos: #[payload]" doc:name="Logger - Datos para BD" />
+
+    <!-- Insertar en la base de datos -->
+    <db:insert config-ref="Database_Config" doc:name="Insertar en BD">
+        <db:sql><![CDATA[INSERT INTO movies (title, release_year, genre, director, cast)
+VALUES (:title, :release_year, :genre, :director, :cast);
+]]></db:sql>
+        <db:input-parameters><![CDATA[#[{
+    title: payload.title,
+    release_year: payload.release_year,
+    genre: payload.genre,
+    director: payload.director,
+    cast: payload.cast
+}]]]></db:input-parameters>
+    </db:insert>
+
+    <!-- Construir respuesta de éxito usando el payload original -->
+    <ee:transform doc:name="Respuesta de Éxito">
+        <ee:message>
+            <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    mensaje: "Añadido exitosamente a la base de datos",
+    datos: vars.originalPayload
+}
+]]></ee:set-payload>
+        </ee:message>
+    </ee:transform>
+
+    <logger level="INFO" message="Película añadida exitosamente: #[vars.originalPayload]" doc:name="Logger - Éxito" />
+</flow>
+
+
+</mule>
